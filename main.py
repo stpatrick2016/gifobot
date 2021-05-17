@@ -46,18 +46,19 @@ def find_pics(query: str, start_from=1) -> typing.List[str]:
     response.raise_for_status()
     result = response.json()
     ret = []
-    for item in result["items"]:
-        link = item["link"]
-        if item["mime"] != "image/gif":
-            continue
-        try:
-            response = requests.request("HEAD", link, timeout=1)
-            if response.status_code <= 299:
-                ret.append(link)
-            else:
-                logger.warning(f"Error {response.status_code} checking url {link}")
-        except (ReadTimeout, ConnectTimeout):
-            logger.warning(f"Timeout waiting for {link}")
+    if "items" in result:
+        for item in result["items"]:
+            link = item["link"]
+            if item["mime"] != "image/gif":
+                continue
+            try:
+                response = requests.request("HEAD", link, timeout=1)
+                if response.status_code <= 299:
+                    ret.append(link)
+                else:
+                    logger.warning(f"Error {response.status_code} checking url {link}")
+            except (ReadTimeout, ConnectTimeout):
+                logger.warning(f"Timeout waiting for {link}")
 
     return ret
 
