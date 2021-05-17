@@ -41,7 +41,7 @@ def get_secret(name) -> typing.Dict:
 
 def find_pics(query: str, start_from=1) -> typing.List[str]:
     query = urllib.parse.quote_plus(f"{SEARCH_CATEGORY} {query}".strip())
-    url = f"https://www.googleapis.com/customsearch/v1?key={GOOGLE_API_TOKEN}&cx={GOOGLE_SEARCH_CONTEXT}&q={query}&imgType=animated&searchType=image&start={start_from}"
+    url = f"https://www.googleapis.com/customsearch/v1?key={GOOGLE_API_TOKEN}&cx={GOOGLE_SEARCH_CONTEXT}&q={query}&imgType=animated&searchType=image&start={start_from}&fields=items(link,mime)"
     response = requests.request("GET", url, headers={}, data={})
     response.raise_for_status()
     result = response.json()
