@@ -4,6 +4,7 @@ import os
 import signal
 import typing
 import urllib.parse
+from functools import wraps
 
 import boto3
 import requests
@@ -25,10 +26,24 @@ GOOGLE_SEARCH_CONTEXT = os.getenv("GOOGLE_SEARCH_CONTEXT")
 GOOGLE_PROJECT_ID = os.getenv("GOOGLE_PROJECT_ID")
 SEARCH_CATEGORY = os.getenv("SEARCH_CATEGORY")
 GOOGLE_CREDENTIALS_SECRET_NAME = os.getenv("GOOGLE_CREDENTIALS_SECRET_NAME")
+ALLOWED_USERS = [int(u) for u in filter(None, (os.getenv("ALLOWED_USERS") or "").split(","))]
 
 
 def handle_sigterm(*args):
     raise KeyboardInterrupt()
+
+
+def restricted(func):
+    @wraps(func)
+    def wrapped(update: Update, context: CallbackContext, *args, **kwargs):
+        user_id = update.effective_user.id
+        if ALLOWED_USERS and user_id not in ALLOWED_USERS:
+            print("Unauthorized access denied for {}.".format(user_id))
+            update.message.reply_text("Тебе не разрешено пользоваться этим ботом. Спроси владельца :)")
+            return
+        return func(update, context, *args, **kwargs)
+
+    return wrapped
 
 
 def get_secret(name) -> typing.Dict:
@@ -92,11 +107,13 @@ def translate_query(query) -> str:
     return query
 
 
+@restricted
 def start(update: Update, _: CallbackContext):
     logger.info(f"User {update.effective_user.name} joined")
     update.message.reply_text("Привет :) Просто напиши что хочешь найти, и я найду. Например: сосать")
 
 
+@restricted
 def new_search(update: Update, context: CallbackContext) -> None:
     query = update.message.text
     logger.info(f"User {update.effective_user.name} ({update.effective_user.id}) searched for {query}")
@@ -139,6 +156,7 @@ def handle_error(_: object, context: CallbackContext):
     logger.error(f"Error handling request: ", exc_info=context.error)
 
 
+@restricted
 def callback_query_handler(update: Update, context: CallbackContext):
     command = update.callback_query.data
 
