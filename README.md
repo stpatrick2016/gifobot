@@ -12,4 +12,5 @@ The following environment variables are required for running the bot:
 |SEARCH_CATEGORY|*Optional*. A keyword to add to every search. In case you want to stick to specific context.|
 |TELEGRAM_API_TOKEN|Telegram Bot API token. Guide can be found [here](https://core.telegram.org/bots).|
 |GOOGLE_CREDENTIALS_SECRET_NAME|*Optional*. AWS SecretsManager secret name to lookup for Google Service Account credentials for translations. Look [here](https://cloud.google.com/docs/authentication/production#create_service_account) on how to create such account. Make sure to grant Cloud Translation API User role to the account. <br/>If not specified, automatic translation to English will not be performed.|
+|ALLOWED_USERS|*Optional*. A comma-delimited user IDs who are allowed to use the bot. Otherwise, open to anyone.|
 
