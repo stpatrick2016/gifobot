@@ -12,11 +12,20 @@ from google.cloud import translate
 from requests.exceptions import ReadTimeout, ConnectTimeout
 from telegram import Update, ChatAction, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest
-from telegram.ext import Updater, CallbackContext, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
+from telegram.ext import (
+    Updater,
+    CallbackContext,
+    CommandHandler,
+    MessageHandler,
+    Filters,
+    CallbackQueryHandler,
+)
 
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s [%(levelname)s]: %(message)s',
-                    datefmt="%Y-%m-%d %H:%M:%S", )
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s]: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +35,9 @@ GOOGLE_SEARCH_CONTEXT = os.getenv("GOOGLE_SEARCH_CONTEXT")
 GOOGLE_PROJECT_ID = os.getenv("GOOGLE_PROJECT_ID")
 SEARCH_CATEGORY = os.getenv("SEARCH_CATEGORY")
 GOOGLE_CREDENTIALS_SECRET_NAME = os.getenv("GOOGLE_CREDENTIALS_SECRET_NAME")
-ALLOWED_USERS = [int(u) for u in filter(None, (os.getenv("ALLOWED_USERS") or "").split(","))]
+ALLOWED_USERS = [
+    int(u) for u in filter(None, (os.getenv("ALLOWED_USERS") or "").split(","))
+]
 
 
 def handle_sigterm(*args):
@@ -39,7 +50,9 @@ def restricted(func):
         user_id = update.effective_user.id
         if ALLOWED_USERS and user_id not in ALLOWED_USERS:
             print("Unauthorized access denied for {}.".format(user_id))
-            update.message.reply_text("Тебе не разрешено пользоваться этим ботом. Спроси владельца :)")
+            update.message.reply_text(
+                "Тебе не разрешено пользоваться этим ботом. Спроси владельца :)"
+            )
             return
         return func(update, context, *args, **kwargs)
 
@@ -74,6 +87,10 @@ def find_pics(query: str, start_from=1) -> typing.List[str]:
                     logger.warning(f"Error {response.status_code} checking url {link}")
             except (ReadTimeout, ConnectTimeout):
                 logger.warning(f"Timeout waiting for {link}")
+            except Exception as e:
+                logger.warning(
+                    f"Unknown error while fetching the pic {link}. Error: {e}"
+                )
 
     return ret
 
@@ -89,7 +106,9 @@ def translate_query(query) -> str:
     if not GOOGLE_CREDENTIALS:
         return query
 
-    client = translate.TranslationServiceClient.from_service_account_info(GOOGLE_CREDENTIALS)
+    client = translate.TranslationServiceClient.from_service_account_info(
+        GOOGLE_CREDENTIALS
+    )
     try:
         response = client.translate_text(
             parent=f"projects/{GOOGLE_PROJECT_ID}",
@@ -110,13 +129,17 @@ def translate_query(query) -> str:
 @restricted
 def start(update: Update, _: CallbackContext):
     logger.info(f"User {update.effective_user.name} joined")
-    update.message.reply_text("Привет :) Просто напиши что хочешь найти, и я найду. Например: сосать")
+    update.message.reply_text(
+        "Привет :) Просто напиши что хочешь найти, и я найду. Например: сосать"
+    )
 
 
 @restricted
 def new_search(update: Update, context: CallbackContext) -> None:
     query = update.message.text
-    logger.info(f"User {update.effective_user.name} ({update.effective_user.id}) searched for {query}")
+    logger.info(
+        f"User {update.effective_user.name} ({update.effective_user.id}) searched for {query}"
+    )
     query = translate_query(query)
     logger.info(f"Translated to: {query}")
 
@@ -127,7 +150,9 @@ def find(update: Update, context: CallbackContext, start_from, query) -> None:
     total_sent = 0
     message = update.message or update.callback_query.message
     while total_sent < 10:
-        context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
+        context.bot.send_chat_action(
+            chat_id=update.effective_message.chat_id, action=ChatAction.TYPING
+        )
         urls = find_pics(query, start_from=start_from)
         if urls:
             total_sent += len(urls)
@@ -165,7 +190,9 @@ def callback_query_handler(update: Update, context: CallbackContext):
         if "start_from" in context.user_data and "query" in context.user_data:
             query = context.user_data["query"]
             start_from = int(context.user_data["start_from"])
-            logger.info(f"Searching more pics for query '{query}' from offset {start_from}")
+            logger.info(
+                f"Searching more pics for query '{query}' from offset {start_from}"
+            )
             find(update, context, start_from, query)
         else:
             update.callback_query.message.reply_text("А что хотела найти? :)")
@@ -190,5 +217,5 @@ def main():
     logger.info("Bot stopped")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
