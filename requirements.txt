@@ -1,6 +1,6 @@
-certifi==2020.12.5
-grpcio==1.37.1
-google-cloud-translate==3.1.0
-python-telegram-bot==13.5
-requests==2.25.1
-boto3~=1.17.73
+certifi==2022.12.7
+grpcio==1.53.0
+google-cloud-translate==3.11.1
+python-telegram-bot==20.2
+requests==2.28.2
+boto3==1.26.104

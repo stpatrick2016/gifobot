@@ -10,15 +10,16 @@ import boto3
 import requests
 from google.cloud import translate
 from requests.exceptions import ReadTimeout, ConnectTimeout, HTTPError
-from telegram import Update, ChatAction, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.constants import ChatAction
 from telegram.error import BadRequest
 from telegram.ext import (
-    Updater,
     CallbackContext,
     CommandHandler,
     MessageHandler,
-    Filters,
     CallbackQueryHandler,
+    Application,
+    filters,
 )
 
 logging.basicConfig(
@@ -119,31 +120,31 @@ def translate_query(query) -> str:
 
 
 @restricted
-def start(update: Update, _: CallbackContext):
+async def start(update: Update, _: CallbackContext):
     logger.info(f"User {update.effective_user.name} joined")
-    update.message.reply_text("Привет :) Просто напиши что хочешь найти, и я найду. Например: сосать")
+    await update.message.reply_text("Привет :) Просто напиши что хочешь найти, и я найду. Например: сосать")
 
 
 @restricted
-def new_search(update: Update, context: CallbackContext) -> None:
+async def new_search(update: Update, context: CallbackContext) -> None:
     query = update.message.text
     logger.info(f"User {update.effective_user.name} ({update.effective_user.id}) searched for {query}")
     query = translate_query(query)
     logger.info(f"Translated to: {query}")
 
-    find(update, context, 1, query)
+    await find(update, context, 1, query)
 
 
-def find(update: Update, context: CallbackContext, start_from, query) -> None:
+async def find(update: Update, context: CallbackContext, start_from, query) -> None:
     total_sent = 0
     message = update.message or update.callback_query.message
     while total_sent < 10:
-        context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
+        await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
         try:
             urls = find_pics(query, start_from=start_from)
         except HTTPError as ex:
             if ex.response.status_code == 429:
-                message.reply_text(f"Слишком много поисков :(")
+                await message.reply_text(f"Слишком много поисков :(")
             raise
 
         if urls:
@@ -151,11 +152,11 @@ def find(update: Update, context: CallbackContext, start_from, query) -> None:
             start_from += 10
             for url in urls:
                 try:
-                    message.reply_animation(url, disable_notification=True)
+                    await message.reply_animation(url, disable_notification=True)
                 except BadRequest as e:
                     logger.warning(f"Error replying with url {url}", exc_info=e)
         else:
-            message.reply_text(f"Ничего не нашел :(")
+            await message.reply_text(f"Ничего не нашел :(")
             logger.warning(f"Nothing found for query: {query}")
             break
 
@@ -163,18 +164,18 @@ def find(update: Update, context: CallbackContext, start_from, query) -> None:
         context.user_data["start_from"] = start_from
         context.user_data["query"] = query
         button = [[InlineKeyboardButton("Ещё!", callback_data="/more")]]
-        message.reply_text("Поискать ещё?", reply_markup=InlineKeyboardMarkup(button))
+        await message.reply_text("Поискать ещё?", reply_markup=InlineKeyboardMarkup(button))
     logger.info(f"Total {total_sent} pics sent for query {query}")
 
 
-def handle_error(_: object, context: CallbackContext):
+async def handle_error(_: object, context: CallbackContext):
     # TODO: send message to dev chat:
     # https://github.com/python-telegram-bot/python-telegram-bot/blob/9949b44560b43da6c4ceee4f7387a61feb3bb2d0/examples/errorhandlerbot.py
     logger.error(f"Error handling request: ", exc_info=context.error)
 
 
 @restricted
-def callback_query_handler(update: Update, context: CallbackContext):
+async def callback_query_handler(update: Update, context: CallbackContext):
     command = update.callback_query.data
 
     # invoke handler
@@ -183,27 +184,25 @@ def callback_query_handler(update: Update, context: CallbackContext):
             query = context.user_data["query"]
             start_from = int(context.user_data["start_from"])
             logger.info(f"Searching more pics for query '{query}' from offset {start_from}")
-            find(update, context, start_from, query)
+            await find(update, context, start_from, query)
         else:
-            update.callback_query.message.reply_text("А что хотела найти? :)")
+            await update.callback_query.message.reply_text("А что хотела найти? :)")
 
 
 def main():
     logger.info("Starting bot...")
     signal.signal(signal.SIGTERM, handle_sigterm)  # to gracefully shutdown in docker
 
-    updater = Updater(token=TELEGRAM_API_TOKEN)
-    dispatcher = updater.dispatcher
+    application = Application.builder().token(TELEGRAM_API_TOKEN).build()
 
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(MessageHandler(Filters.text, new_search))
-    dispatcher.add_handler(CallbackQueryHandler(callback_query_handler))
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT, new_search))
+    application.add_handler(CallbackQueryHandler(callback_query_handler))
 
-    dispatcher.add_error_handler(handle_error)
+    application.add_error_handler(handle_error)
 
-    updater.start_polling()
     logger.info("Bot started")
-    updater.idle()
+    application.run_polling()
     logger.info("Bot stopped")
 
 
