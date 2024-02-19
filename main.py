@@ -4,7 +4,7 @@ import os
 import signal
 import typing
 import urllib.parse
-from functools import wraps
+from functools import wraps, cache
 
 import boto3
 import requests
@@ -56,6 +56,7 @@ def restricted(func):
     return wrapped
 
 
+@cache
 def get_secret(name) -> typing.Dict:
     logger.info(f"Getting secret {name}")
     client = boto3.client("secretsmanager")
