@@ -10,10 +10,8 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     environment: philip-azure
-
     steps:
       - uses: actions/checkout@v3
-        name: Download repository
 
       - name: Login into repository ${{ vars.GIFOBOT_REGISTRY }}
         if: github.event_name != 'pull_request'
