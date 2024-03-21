@@ -1,0 +1,45 @@
+name: Deploy to Docker registry
+
+on:
+  push:
+    branches: [ "master" ]
+    tags: [ 'v*.*.*' ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: philip-azure
+
+    steps:
+      - uses: actions/checkout@v3
+        name: Download repository
+
+      - name: Login into repository ${{ vars.GIFOBOT_REGISTRY }}
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ vars.GIFOBOT_REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Extract docker metadata
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: ${{ vars.GIFOBOT_REGISTRY }}/${{ vars.GIFOBOT_IMAGE }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+
+
+      
+      
+      
+      run: docker build . --file Dockerfile --tag ${{vars.GIFOBOT_IMAGE}}:${{github.run_number}}
